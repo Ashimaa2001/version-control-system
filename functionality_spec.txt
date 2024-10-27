@@ -1,0 +1,52 @@
+1. ./mygit init
+    create directory .mygit with structure:
+    - .git
+        - branches/
+        - config
+        -description
+        -HEAD
+        -hooks/
+        -info/
+        -objects/
+        -refs/
+
+2. ./mygit hash-object [-w] <file_name.txt>  (3/4)
+    - calclulate SHA1 of the file
+    - compress the ssh
+    - without w, print the hash
+    - with w, store it a s a blob object 
+
+3. ./mygit cat-file <flag> <file_sha> (4)
+    - p :print content of the file
+    - s : file size in bytes
+    - t : type of object
+
+4. ./mygit write-tree  (2)
+    - write current tree structure to tree object
+    - new tree object, store it in repo
+    -create another hash 
+
+5. ./mygit ls-tree [--name-only] <tree_sha>  (3/4)
+    - list content of tree object from SHA1
+    - name-only: names of files and subdirectories
+    - detailed info
+        -mode, type, SHA1 hash, names 
+
+6. ./mygit add .  (3)
+   ./mygit add main.cpp utils.cpp
+    - stage files, check metadata
+
+7. ./mygit commit -m "Commit message" (4)
+   ./mygit commit  (2)
+    - commit object (reference to tree object)
+    - default message if -m missing
+    - HEAD point to new commit 
+    - SHA, timestamp, parent commit SHA 
+
+8. ./mygit log  (2)
+    - display commit history 
+    - SHA, parent SHA, message, timestamp, commiter info 
+
+9. ./mygit checkout <commit_sha>  (3)
+    - restore state from a particular commit 
+    - restore directory structure 
