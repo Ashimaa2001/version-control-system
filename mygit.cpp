@@ -70,11 +70,17 @@ int main(int argc, char *argv[]){
     }
 
     else if(command=="write-tree" && argc==2){
-
+        writeTree();
     }
 
     else if(command=="ls-tree" && (argc==3 || argc==4)){
-
+        string sha= argc==3? argv[2] : argv[3];
+        if(argc==3){
+            ls_tree(sha);
+        }
+        else{
+            ls_tree_names(sha);
+        }
     }
 
     else if(command=="add" && argc>=3){

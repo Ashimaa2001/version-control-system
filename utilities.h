@@ -9,7 +9,13 @@
 #include <fstream>
 #include <iomanip>
 #include <zlib.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <filesystem>
+
 using namespace std;
+using namespace std::filesystem;
 
 void initializeRepo(){
 
@@ -138,6 +144,148 @@ bool cat(const string& flag, const string& fileSha){
         cout<<decompressedData<<endl;
     }
     return true;
+}
+
+string compute_sha1(const string &content) {
+
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    SHA1(reinterpret_cast<const unsigned char *>(content.c_str()), content.size(), hash);
+    ostringstream hex_hash;
+    for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
+        hex_hash << hex << setw(2) << setfill('0') << static_cast<int>(hash[i]);
+    }
+    return hex_hash.str();
+}
+
+void writeFiles(const string& path, ostringstream& tree_content){ //recursive
+
+   DIR* dir = opendir(path.c_str());
+    if (!dir) return;
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        string file_name = entry->d_name;
+        if (file_name == "." || file_name == ".." || file_name[0] == '.') continue;
+
+        string full_path = path + "/" + file_name;
+        struct stat file_stat;
+        if (stat(full_path.c_str(), &file_stat) == -1) continue;
+
+        if (S_ISREG(file_stat.st_mode)) {
+            ifstream file(full_path, ios::binary);
+            stringstream buffer;
+            buffer << file.rdbuf();
+            string content = buffer.str();
+
+            string file_hash = compute_sha1(content);
+            tree_content << "100644 blob " << file_hash << " " << file_name << "\n";
+        } else if (S_ISDIR(file_stat.st_mode)) {
+            ostringstream dir_content;
+            writeFiles(full_path, dir_content);
+            
+            string dir_hash = compute_sha1(dir_content.str());
+            string objectDir = ".mygit/objects/" + dir_hash.substr(0, 2);
+            mkdir(objectDir.c_str(), 0755);
+
+            ofstream dir_tree_file(objectDir + "/" + dir_hash.substr(2), ios::binary);
+            dir_tree_file << dir_content.str();
+            dir_tree_file.close();
+
+            tree_content << "040000 tree " << dir_hash << " " << file_name << "\n";
+        }
+    }
+
+    closedir(dir);
+}
+
+string writeTree(){
+
+    ostringstream tree_content;
+    writeFiles(".", tree_content);
+
+    string tree_object_content = tree_content.str();
+    string tree_hash = compute_sha1(tree_object_content);
+
+    string objectDir = ".mygit/objects/" + tree_hash.substr(0, 2);
+    mkdir(objectDir.c_str(), 0775);
+
+    ofstream tree_file(objectDir + "/" + tree_hash.substr(2), ios::binary);
+    tree_file << tree_object_content;
+
+    cout <<tree_hash << endl;
+    return tree_hash;
+}
+
+void ls_tree(const string& tree_sha) {
+
+    string objectPath = ".mygit/objects/" + tree_sha.substr(0, 2) + "/" + tree_sha.substr(2);
+    
+    ifstream tree_file(objectPath, ios::binary);
+    if (!tree_file.is_open()) {
+        cerr << "Tree object not found: " << objectPath << endl;
+        return;
+    }
+
+    stringstream buffer;
+    buffer << tree_file.rdbuf();
+    string tree_content = buffer.str();
+
+    size_t pos = 0;
+    while (pos < tree_content.size()) {
+        size_t next_line = tree_content.find('\n', pos);
+        if (next_line == string::npos) break;
+
+        string line = tree_content.substr(pos, next_line - pos);
+        pos = next_line + 1;
+
+        cout << line << endl;
+
+        if (line[0]=='0') {
+            stringstream ss(line);
+            string mode, type, dir_hash, name;
+            ss >> mode >> type >> dir_hash >> name;
+
+            ls_tree(dir_hash);
+        }
+    }
+    cout<<"040000 tree "<<tree_sha<<" build"<<endl;
+}
+
+void ls_tree_names(const string& tree_sha) {
+    string objectPath = ".mygit/objects/" + tree_sha.substr(0, 2) + "/" + tree_sha.substr(2);
+    
+    ifstream tree_file(objectPath, ios::binary);
+    if (!tree_file.is_open()) {
+        cerr << "Tree object not found: " << objectPath << endl;
+        return;
+    }
+
+    stringstream buffer;
+    buffer << tree_file.rdbuf();
+    string tree_content = buffer.str();
+
+    size_t pos = 0;
+    while (pos < tree_content.size()) {
+        size_t next_line = tree_content.find('\n', pos);
+        if (next_line == string::npos) break;
+
+        string line = tree_content.substr(pos, next_line - pos);
+        pos = next_line + 1;
+
+        size_t last_space = line.find_last_of(' ');
+        if (last_space != string::npos) {
+            cout << line.substr(last_space + 1) << endl;
+        }
+
+        if (line[0]=='0') {
+            stringstream ss(line);
+            string mode, type, dir_hash, name;
+            ss >> mode >> type >> dir_hash >> name;
+
+            ls_tree_names(dir_hash);
+        }
+    }
+    cout<<"build/"<<endl;
 }
 
 #endif
