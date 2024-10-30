@@ -20,7 +20,7 @@ using namespace std::filesystem;
 void initializeRepo(){
 
     vector<const char*> dirs= {".mygit", ".mygit/objects", ".mygit/refs", ".mygit/info"};
-    vector<const char*> files= {".mygit/config", ".mygit/description", ".mygit/HEAD"};
+    vector<const char*> files= {".mygit/config", ".mygit/index", ".mygit/HEAD"};
     ofstream file;
 
     for(const char* dir: dirs){
@@ -287,5 +287,38 @@ void ls_tree_names(const string& tree_sha) {
     }
     cout<<"build/"<<endl;
 }
+
+bool addFiles(const vector<string>& files) {
+    ofstream indexFile(".mygit/index", ios::binary);
+
+    for (const string& file_path : files) {
+        if (exists(file_path)) {
+            if(file_path=="./mygit"){
+                continue;
+            }
+            if (is_directory(file_path)) {
+                ostringstream tree_content;
+                writeFiles(file_path, tree_content);
+                
+                string dir_object_content = tree_content.str();
+                string dir_hash = compute_sha1(dir_object_content);
+                
+                indexFile << "tree "<<file_path << " " << dir_hash << endl;
+            }
+            else{
+                string file_hash = calculateFileHash(file_path);
+                indexFile <<"blob "<< file_path << " " << file_hash << endl;
+            }
+        } 
+        else{
+            return false;
+        }
+        
+    }
+
+    indexFile.close();
+    return true;
+}
+
 
 #endif

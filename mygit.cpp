@@ -85,6 +85,23 @@ int main(int argc, char *argv[]){
 
     else if(command=="add" && argc>=3){
 
+        vector<string> files;
+
+        if (string(argv[2]) == ".") {
+            for (const auto& entry : directory_iterator(".")) {
+                files.push_back(entry.path().string());
+            }
+        } 
+
+        else {
+            for (int i = 2; i < argc; ++i) {
+                files.push_back(argv[i]);
+            }
+        }
+
+        if(!addFiles(files)){
+            cout<<"Couldn't add files"<<endl;
+        }
     }
 
     else if(command=="commit" && (argc==2 || argc==4)){
