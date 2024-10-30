@@ -11,17 +11,35 @@
 #include <zlib.h>
 using namespace std;
 
+void initializeRepo(){
+
+    vector<const char*> dirs= {".mygit", ".mygit/objects", ".mygit/refs", ".mygit/info"};
+    vector<const char*> files= {".mygit/config", ".mygit/description", ".mygit/HEAD"};
+    ofstream file;
+
+    for(const char* dir: dirs){
+        mkdir(dir, 0775);
+    }
+
+    for(const char* filePath: files){
+        file.open(filePath);
+        file.close();
+    }
+
+}
+
 bool isGitInitialized(){
     ifstream file;
     file.open(".mygit");
     if(!file){
-        cout<<"Please initialize git first"<<endl;
         return false;
     }
+    file.close();
     return true;
 }
 
 string calculateFileHash(const string& filePath) {
+
     ifstream file(filePath, ios::binary);
 
     if(!file){
@@ -40,39 +58,43 @@ string calculateFileHash(const string& filePath) {
     return shaValue.str();
 }
 
-
-bool compressFile(const string& filePath, const string& destPath) {
-    ifstream sourceFile(filePath, ios::binary);
-    if (!sourceFile.is_open()) {
+bool writeToFile(const string& filePath, const string& data){
+    ofstream destFile(filePath, ios::binary);
+    
+    if(!destFile.is_open()){
         return false;
     }
 
-    string buffer((istreambuf_iterator<char>(sourceFile)), istreambuf_iterator<char>());
-    sourceFile.close();
+    destFile.write(data.c_str(), data.size());
+    destFile.close();
+    return true;
+}
 
-    string header = "blob " + to_string(buffer.size()) + "\0";
-    string combinedData = header + buffer;
+bool storeObject(const string& filePath, const string& objectPath){
 
-    uLongf compressedSize = compressBound(combinedData.size());
+    ifstream file(filePath, ios::binary);
+    if(!file){
+        return false;
+    }
+
+    stringstream ss;
+    ss<<file.rdbuf();
+    string data= ss.str();
+
+    uLongf compressedSize = compressBound(data.size());
     string compressedData(compressedSize, '\0');
 
-    if (compress(reinterpret_cast<Bytef*>(&compressedData[0]), &compressedSize,
-             reinterpret_cast<const Bytef*>(combinedData.data()), combinedData.size()) != Z_OK) {
+    int result = ::compress(reinterpret_cast<Bytef*>(&compressedData[0]), &compressedSize,
+                            reinterpret_cast<const Bytef*>(data.data()), data.size());
+
+    if (result != Z_OK) {
         return false;
     }
 
     compressedData.resize(compressedSize);
 
-    ofstream destFile(destPath, ios::binary);
+    return writeToFile(objectPath, compressedData);
     
-    destFile.is_open();
-    
-    destFile.write(compressedData.data(), compressedSize);
-    destFile.close();
-
-    return true;
 }
-
-
 
 #endif

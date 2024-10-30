@@ -10,23 +10,6 @@
 using namespace std;
 
 
-void initializeRepo(){
-    vector<const char*> dirs= {".mygit", ".mygit/objects", ".mygit/refs", ".mygit/info"};
-    vector<const char*> files= {".mygit/config", ".mygit/description", ".mygit/HEAD"};
-    ofstream file;
-
-    for(const char* dir: dirs){
-        mkdir(dir, 0775);
-    }
-
-    for(const char* filePath: files){
-        file.open(filePath);
-        file.close();
-    }
-
-}
-
-
 int main(int argc, char *argv[]){
 
     if(argc<2){
@@ -42,6 +25,7 @@ int main(int argc, char *argv[]){
     }
 
     if(!isGitInitialized()){
+        cout<<"Please initialize git first"<<endl;
         return 0;
     }
 
@@ -50,7 +34,7 @@ int main(int argc, char *argv[]){
         string calculatedSha= argc==3? calculateFileHash(argv[2]): calculateFileHash(argv[3]);
 
         if(argc==3 && calculatedSha==""){
-            cout<<"Could not locate file"<<endl;
+            cout<<"Wrong file path"<<endl;
             return 0;
         }
         
@@ -67,7 +51,9 @@ int main(int argc, char *argv[]){
             file.open(filePath);
             file.close();
 
-            compressFile(argv[3], filePath);
+            if(!storeObject(argv[3], filePath)){
+                cout<<"Couldn't store object"<<endl;
+            }
         }
         
     }
