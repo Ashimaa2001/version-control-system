@@ -84,7 +84,7 @@ bool storeObject(const string& filePath, const string& objectPath){
     uLongf compressedSize = compressBound(data.size());
     string compressedData(compressedSize, '\0');
 
-    int result = ::compress(reinterpret_cast<Bytef*>(&compressedData[0]), &compressedSize,
+    int result = compress(reinterpret_cast<Bytef*>(&compressedData[0]), &compressedSize,
                             reinterpret_cast<const Bytef*>(data.data()), data.size());
 
     if (result != Z_OK) {
@@ -95,6 +95,49 @@ bool storeObject(const string& filePath, const string& objectPath){
 
     return writeToFile(objectPath, compressedData);
     
+}
+
+bool cat(const string& flag, const string& fileSha){
+
+    string objectPath= ".mygit/objects/" + fileSha.substr(0, 2) + "/" + fileSha.substr(2);
+
+    int fd = open(objectPath.c_str(), O_RDONLY);
+    if(fd==-1){
+        return false;
+    }
+
+    if(flag=="-t"){
+        cout<<"blob"<<endl;
+        return true;
+    }
+
+    off_t size = lseek(fd, 0, SEEK_END);
+    lseek(fd, 0, SEEK_SET);
+
+    string compressedData(size, '\0');
+    read(fd, &compressedData[0], size);
+
+    close(fd);
+
+    uLongf decompressedSize = compressedData.size() * 5;
+    string decompressedData(decompressedSize, '\0');
+
+    int result = uncompress(reinterpret_cast<Bytef*>(&decompressedData[0]), &decompressedSize,
+                              reinterpret_cast<const Bytef*>(compressedData.data()), compressedData.size());
+
+    if (result != Z_OK) {
+        return false;
+    }
+
+    decompressedData.resize(decompressedSize);
+
+    if(flag=="-s"){
+        cout<<decompressedData.size()<<endl;
+    }
+    else if(flag=="-p"){
+        cout<<decompressedData<<endl;
+    }
+    return true;
 }
 
 #endif

@@ -59,7 +59,14 @@ int main(int argc, char *argv[]){
     }
 
     else if(command=="cat-file" && argc==4){
-
+        string hash= argv[3];
+        if(hash.size()!=40){
+            cout<<"Incorrect SHA value"<<endl;
+            return 0;
+        }
+        if(!cat(argv[2], argv[3])){
+            cout<<"Could not access file"<<endl;
+        }
     }
 
     else if(command=="write-tree" && argc==2){
