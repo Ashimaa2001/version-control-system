@@ -13,6 +13,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <filesystem>
+#include <time.h>
 
 using namespace std;
 using namespace std::filesystem;
@@ -157,7 +158,7 @@ string compute_sha1(const string &content) {
     return hex_hash.str();
 }
 
-void writeFiles(const string& path, ostringstream& tree_content){ //recursive
+void writeFiles(const string& path, ostringstream& tree_content){
 
    DIR* dir = opendir(path.c_str());
     if (!dir) return;
@@ -248,7 +249,6 @@ void ls_tree(const string& tree_sha) {
             ls_tree(dir_hash);
         }
     }
-    cout<<"040000 tree "<<tree_sha<<" build"<<endl;
 }
 
 void ls_tree_names(const string& tree_sha) {
@@ -285,7 +285,6 @@ void ls_tree_names(const string& tree_sha) {
             ls_tree_names(dir_hash);
         }
     }
-    cout<<"build/"<<endl;
 }
 
 bool addFiles(const vector<string>& files) {
@@ -320,5 +319,80 @@ bool addFiles(const vector<string>& files) {
     return true;
 }
 
+void commit(const string& message){
+    string tree= writeTree();
+    string parentSha="";
+    time_t now = time(0);
+    const char* user = getenv("USER");
+    string currentUser = user ? user : "Unknown";
+
+    ifstream commitFile(".mygit/commits");
+    if (commitFile.is_open()) {
+        string lastCommitSha;
+        while (getline(commitFile, lastCommitSha)) {
+            parentSha = lastCommitSha;
+        }
+        commitFile.close();
+    }
+
+    stringstream commitInfo;
+    commitInfo<<"Tree: "<<tree<<"\n";
+    commitInfo<<"Parent SHA: "<<parentSha<<"\n";
+    commitInfo<<"Commit message: "<<message<<"\n";
+    commitInfo<<"Timestamp: "<< ctime(&now);
+    commitInfo<<"User: "<<currentUser<<"\n";
+
+    string commitHash= compute_sha1(commitInfo.str());
+    string objectDir = ".mygit/objects/" + commitHash.substr(0, 2);
+    mkdir(objectDir.c_str(), 0755);
+
+    ofstream file;
+    file.open(objectDir+"/"+commitHash.substr(2));
+    file.close();
+
+    writeToFile(objectDir+"/"+commitHash.substr(2), commitInfo.str());
+
+    ofstream commitFileOut(".mygit/commits", ios::app);
+    commitFileOut << commitHash << endl;
+
+    cout<<"Commit: "<<commitHash<<endl;
+
+}
+
+void log() {
+    ifstream commitFile(".mygit/commits");
+    if (!commitFile.is_open()) {
+        cerr << "Could not open the commits file." << endl;
+        return;
+    }
+
+    vector<string> commits;
+    string line;
+
+    while (getline(commitFile, line)) {
+        commits.push_back(line);
+    }
+    commitFile.close();
+    cout<<"Commit details: "<<endl<<endl;
+
+    for (auto it = commits.rbegin(); it != commits.rend(); ++it) {
+        cout<<"Commit SHA: "<<*it<<endl;
+        
+        string objectPath = ".mygit/objects/" + it->substr(0, 2) + "/" + it->substr(2);
+        ifstream commitObject(objectPath, ios::binary);
+
+        stringstream buffer;
+        buffer << commitObject.rdbuf();
+        string content = buffer.str();
+
+        size_t pos = content.find('\n');
+        if (pos != string::npos) {
+            cout << content.substr(pos + 1) << endl;
+        }
+
+        commitObject.close();
+        
+    }
+}
 
 #endif

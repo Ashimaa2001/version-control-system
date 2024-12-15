@@ -77,9 +77,11 @@ int main(int argc, char *argv[]){
         string sha= argc==3? argv[2] : argv[3];
         if(argc==3){
             ls_tree(sha);
+            cout<<"040000 tree "<<sha<<" build"<<endl;
         }
         else{
             ls_tree_names(sha);
+            cout<<"build/"<<endl; 
         }
     }
 
@@ -105,11 +107,12 @@ int main(int argc, char *argv[]){
     }
 
     else if(command=="commit" && (argc==2 || argc==4)){
-
+        string message= argc==4?argv[3]:"Default commit message";
+        commit(message);
     }
 
     else if(command=="log" && argc==2){
-
+        log();
     }
 
     else if(command=="checkout" && argc==3){
